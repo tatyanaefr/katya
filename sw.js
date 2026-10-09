@@ -1,6 +1,6 @@
 // Работа без интернета: приложение, картинки и озвучка сохраняются в телефоне.
 // Открывается сохранённая версия, а в фоне подтягивается свежая — правки приходят сами.
-const CACHE = "katya-tracker-v2";   // после переозвучки или новых картинок — увеличить номер
+const CACHE = "katya-tracker-v3";   // после переозвучки или новых картинок — увеличить номер
 const FILES = [
   "./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png",
   "./img/girl-autumn.png", "./img/girl-winter.png", "./img/girl-spring.png", "./img/girl-summer.png",
