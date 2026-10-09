@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ec4899" id="themeColor">
+<meta name="color-scheme" content="light">
+<title>Трекер Кати</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Lobster&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   ЦВЕТА — общие и по временам года
+   ===================================================================== */
+:root {
+  --blue: #e0368a;
+  --blue-dark: #a3195f;
+  --green: #9b5de5;
+  --green-dark: #6a2fb0;
+  --weekday: #ffe0ef;
+  --weekday-2: #ffc9e2;
+  --weekday-edge: #f9a3cb;
+  --weekend: #ece0ff;
+  --weekend-2: #dcc8ff;
+  --weekend-edge: #b99af0;
+  --empty: rgba(236, 236, 236, .8);
+  --paper: #fff7fb;
+  --ink: #5a1e4a;
+  --shadow: 0 3px 0 rgba(0, 0, 0, .08), 0 6px 14px rgba(0, 0, 0, .1);
+
+  /* осень — по умолчанию */
+  --sky-1: #8fd0ff;
+  --sky-2: #cdeaff;
+  --sky-3: #ffe3a8;
+  --hill-back: #f3b54a;
+  --hill-front: #e8862a;
+  --accent: #e8741a;
+  --accent-2: #ffb13d;
+  --plank: #fff4f0;
+  --plank-edge: #f7b9a8;
+  --board-edge: #ffb3c9;
+}
+
+body[data-season="winter"] {
+  --sky-1: #5d9df0;
+  --sky-2: #a9d1ff;
+  --sky-3: #eef7ff;
+  --hill-back: #e3f0ff;
+  --hill-front: #ffffff;
+  --accent: #b04fd6;
+  --accent-2: #e3a6ff;
+  --plank: #fbf6ff;
+  --plank-edge: #dcc2f7;
+  --board-edge: #e2c8ff;
+}
+body[data-season="spring"] {
+  --sky-1: #89dcff;
+  --sky-2: #cff1ff;
+  --sky-3: #f1ffd8;
+  --hill-back: #a9e07c;
+  --hill-front: #74c64a;
+  --accent: #e0457b;
+  --accent-2: #ff8fb4;
+  --plank: #fff4f8;
+  --plank-edge: #ffc2d6;
+  --board-edge: #ffc2d6;
+}
+body[data-season="summer"] {
+  --sky-1: #46bdff;
+  --sky-2: #a8e3ff;
+  --sky-3: #fff6b8;
+  --hill-back: #8fd65a;
+  --hill-front: #52b22e;
+  --accent: #f0507a;
+  --accent-2: #ffb36b;
+  --plank: #fff6ef;
+  --plank-edge: #ffc6a8;
+  --board-edge: #ffc0d3;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: "Nunito", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--sky-2);
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* =====================================================================
+   СЦЕНА: небо, облака, солнце, холмы, падающие листья/снег
+   ===================================================================== */
+.scene {
+  position: fixed; inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 45%, var(--sky-3) 100%);
+  transition: background .6s;
+}
+
+.cloud {
+  position: absolute;
+  width: 120px; height: 38px;
+  background: #fff;
+  border-radius: 40px;
+  opacity: .85;
+  animation: drift linear infinite;
+}
+.cloud::before, .cloud::after {
+  content: ""; position: absolute; background: #fff; border-radius: 50%;
+}
+.cloud::before { width: 52px; height: 52px; top: -26px; left: 18px; }
+.cloud::after  { width: 64px; height: 64px; top: -34px; left: 48px; }
+.cloud.c1 { top: 60px;  transform: scale(.9); animation-duration: 70s; animation-delay: -20s; }
+.cloud.c2 { top: 190px; transform: scale(.6); animation-duration: 95s; animation-delay: -60s; opacity: .7; }
+.cloud.c3 { top: 330px; transform: scale(.75); animation-duration: 85s; animation-delay: -5s; opacity: .6; }
+@keyframes drift { from { left: -160px; } to { left: 110%; } }
+
+.sky-sun {
+  position: absolute;
+  top: -6px; right: -4px;
+  font-size: 92px;
+  line-height: 1;
+  filter: drop-shadow(0 0 18px rgba(255, 214, 64, .9));
+  animation: sunny 6s ease-in-out infinite;
+}
+body[data-season="winter"] .sky-sun { filter: drop-shadow(0 0 10px rgba(255, 255, 255, .8)); }
+@keyframes sunny { 50% { transform: rotate(8deg) scale(1.05); } }
+
+.hills { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 170px; }
+.hills .back  { fill: var(--hill-back);  transition: fill .6s; }
+.hills .front { fill: var(--hill-front); transition: fill .6s; }
+
+.ground-deco {
+  position: absolute; left: 0; right: 0; bottom: 6px;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  padding: 0 6px;
+  font-size: 42px;
+  line-height: 1;
+}
+.ground-deco > * { filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .15)); }
+.ground-deco img { height: 70px; width: auto; display: block; }
+.ground-deco .big { font-size: 58px; }
+
+/* ёлочная гирлянда зимой: фонарики на проводе, иногда перемигиваются */
+.garland {
+  position: absolute; top: 0; left: 0; right: 0; height: 40px;
+  display: none;
+}
+body.garland-on .garland { display: block; }
+.garland svg { position: absolute; inset: 0 0 auto 0; width: 100%; height: 30px; }
+.garland svg path { fill: none; stroke: #2f5d34; stroke-width: 2; }
+.garland i {
+  position: absolute;
+  top: 12px;
+  width: 11px; height: 16px;
+  margin-left: -5.5px;
+  border-radius: 45% 45% 50% 50% / 40% 40% 60% 60%;
+  background: var(--c);
+  box-shadow: 0 0 10px 3px var(--c);
+  animation: twinkle ease-in-out infinite;
+}
+.garland i::before {
+  content: ""; position: absolute; top: -4px; left: 2.5px;
+  width: 6px; height: 5px; border-radius: 2px; background: #3b4a3f;
+}
+@keyframes twinkle {
+  0%, 70%, 100% { opacity: 1; box-shadow: 0 0 10px 3px var(--c); }
+  78% { opacity: .25; box-shadow: none; }
+  86% { opacity: 1; box-shadow: 0 0 16px 6px var(--c); }
+}
+
+/* то, что падает с неба: листья, капли, снег, цветы */
+.fall { position: absolute; inset: 0; }
+.fall span {
+  position: absolute;
+  top: -40px;
+  line-height: 1;
+  animation: fall linear infinite;
+}
+.fall span b {
+  display: inline-block;
+  font-weight: 400;
+  animation: sway ease-in-out infinite alternate;
+}
+.fall svg { display: block; width: 1em; height: 1em; }
+@keyframes fall { to { transform: translateY(calc(100vh + 80px)); } }
+@keyframes sway { from { transform: translateX(-22px) rotate(-25deg); } to { transform: translateX(22px) rotate(25deg); } }
+.fall .snow { color: #fff; text-shadow: 0 0 4px rgba(80, 140, 220, .6); }
+.fall .yellow b { filter: hue-rotate(52deg) saturate(1.8) brightness(1.3); }
+.fall .rain b { animation: none; }
+.fall .rain i {
+  display: block;
+  width: 10px; height: 15px;
+  background: linear-gradient(180deg, #2f8fe0, #a8dcff);
+  border: 1.5px solid #1f74c4;
+  border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%;
+  transform: rotate(180deg);
+  opacity: .9;
+  box-shadow: inset 2px 3px 0 rgba(255, 255, 255, .75);
+}
+
+/* то, что летает: бабочки, божьи коровки */
+.flyers { position: absolute; inset: 0; }
+.flyers span {
+  position: absolute;
+  left: -60px;
+  line-height: 1;
+  animation: flyAcross linear infinite;
+}
+.flyers span.back { animation-name: flyBack; }
+.flyers span b {
+  display: inline-block;
+  font-weight: 400;
+  animation: flutter ease-in-out infinite alternate;
+}
+.flyers span.back b { transform: scaleX(-1); }
+@keyframes flyAcross { from { left: -60px; } to { left: calc(100% + 60px); } }
+@keyframes flyBack   { from { left: calc(100% + 60px); } to { left: -60px; } }
+@keyframes flutter {
+  0%   { translate: 0 0;     rotate: -8deg; }
+  50%  { translate: 0 -34px; rotate: 6deg; }
+  100% { translate: 0 10px;  rotate: -4deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fall, .flyers, .cloud { display: none; }
+  .sky-sun, .boy, .garland i { animation: none !important; }
+}
+
+/* кнопка музыки */
+.music-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: var(--accent-2);
+  font-size: 24px;
+  line-height: 1;
+  padding: 0;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font-weight: 400;
+}
+.music-btn.off { background: #c9d2de; filter: grayscale(1); }
+
+/* =====================================================================
+   СТРАНИЦА
+   ===================================================================== */
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 10px 10px 150px;
+}
+
+/* ---------- Шапка: Катя + имя + месяц ---------- */
+header {
+  display: grid;
+  grid-template-columns: 44% minmax(0, 1fr);
+  align-items: end;
+  gap: 4px;
+  min-height: 230px;
+}
+
+.boy-wrap {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+}
+.boy {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 260px;
+  display: block;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .18));
+  transform-origin: 50% 100%;
+  animation: breathe 3.5s ease-in-out infinite;
+}
+.boy.talking { animation: talk .5s ease-in-out infinite alternate; }
+@keyframes breathe { 50% { transform: translateY(-3px) rotate(-1.5deg); } }
+@keyframes talk { from { transform: rotate(-4deg) scale(1.02); } to { transform: rotate(4deg) scale(1.02); } }
+
+.bubble {
+  position: absolute;
+  top: 0; right: -6px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 3px 8px;
+  font-size: 13px;
+  color: var(--accent);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  animation: bob 2s ease-in-out infinite;
+}
+@keyframes bob { 50% { transform: translateY(-4px); } }
+
+.title { text-align: center; padding-bottom: 4px; }
+
+.name {
+  margin: 0;
+  font-family: "Lobster", "Nunito", cursive;
+  font-size: clamp(56px, 17vw, 90px);
+  font-weight: 400;
+  line-height: 1.05;
+  color: var(--blue);
+  letter-spacing: 1px;
+  text-shadow:
+    3px 3px 0 #fff, -3px 3px 0 #fff, 3px -3px 0 #fff, -3px -3px 0 #fff,
+    0 3px 0 #fff, 0 -3px 0 #fff, 3px 0 0 #fff, -3px 0 0 #fff,
+    0 8px 0 rgba(163, 25, 95, .25);
+}
+
+.month-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.month {
+  flex: 1;
+  min-width: 0;
+  background: var(--plank);
+  border: 3px solid var(--plank-edge);
+  border-radius: 16px;
+  padding: 3px 4px 4px;
+  font-size: clamp(16px, 4.9vw, 28px);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--accent);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+/* год — мелко второй строкой, чтобы месяц помещался рядом с большой Катей */
+.month small { display: block; font-size: .6em; opacity: .75; }
+
+.arrow {
+  flex: none;
+  width: 36px; height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 17px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.arrow:active, .today-btn:active, .card-btns button:active { transform: translateY(2px); }
+
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0 22px;
+}
+.today-btn {
+  display: block;
+  margin: 0;
+  padding: 10px 28px;
+  border: 4px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff9ccb, #e8368f);
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(150, 20, 80, .3);
+  font: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  box-shadow: var(--shadow), 0 0 0 4px rgba(255, 120, 190, .35);
+  cursor: pointer;
+  animation: glow 2.4s ease-in-out infinite;
+}
+@keyframes glow { 50% { box-shadow: var(--shadow), 0 0 0 9px rgba(255, 120, 190, .15); } }
+
+/* ---------- Календарь ---------- */
+.board {
+  position: relative;
+  background: rgba(255, 255, 255, .88);
+  border: 4px dotted var(--board-edge);
+  border-radius: 26px;
+  padding: 8px;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, .7), var(--shadow);
+}
+
+/* украшения на углах календаря */
+.corner {
+  position: absolute;
+  z-index: 2;
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 400;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .15));
+}
+.corner.tl { top: -22px; left: -12px; transform: rotate(-18deg); }
+.corner.tr { top: -24px; right: -10px; transform: rotate(16deg); }
+.corner.bl { bottom: -18px; left: -10px; transform: rotate(-8deg); font-size: 34px; }
+.corner.br { bottom: -20px; right: -8px; transform: rotate(10deg); font-size: 34px; }
+
+/* зимой на календаре лежит снег */
+.snowcap {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  top: -14px; left: 14px; right: 14px;
+  height: 24px;
+  background:
+    radial-gradient(circle at 12px 10px, #fff 11px, transparent 12px) 0 6px / 24px 20px repeat-x,
+    linear-gradient(#fff, #fff) 0 0 / 100% 12px no-repeat;
+  border-radius: 12px 12px 0 0;
+  filter: drop-shadow(0 2px 2px rgba(80, 140, 220, .35));
+  pointer-events: none;
+}
+body[data-season="winter"] .snowcap { display: block; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.dow {
+  text-align: center;
+  color: #fff;
+  font-size: clamp(13px, 3.6vw, 17px);
+  font-weight: 900;
+  padding: 6px 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f472b6, var(--blue));
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .12);
+}
+.dow.we { background: linear-gradient(180deg, #b98af5, var(--green)); }
+
+.cell {
+  position: relative;
+  min-height: 78px;
+  border-radius: 13px;
+  padding: 3px 4px 4px;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .06);
+  transition: transform .1s;
+}
+.cell:active { transform: scale(.94); }
+.cell.empty { background: var(--empty); cursor: default; box-shadow: none; }
+.cell.empty:active { transform: none; }
+.cell.wd { background: linear-gradient(180deg, var(--weekday), var(--weekday-2)); border-color: var(--weekday-edge); }
+.cell.we { background: linear-gradient(180deg, var(--weekend), var(--weekend-2)); border-color: var(--weekend-edge); }
+.cell.past { opacity: .82; }
+.cell.today {
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 3px #fff, 0 0 12px 4px var(--accent-2);
+  animation: todayPulse 1.8s ease-in-out infinite;
+  z-index: 1;
+}
+@keyframes todayPulse { 50% { transform: scale(1.05); } }
+
+.num {
+  font-size: clamp(13px, 4vw, 22px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -.5px;
+  color: var(--blue-dark);
+}
+.cell.we .num { color: var(--green-dark); }
+
+.icons {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: clamp(18px, 5.4vw, 28px);
+  line-height: 1.1;
+  font-weight: 400;
+}
+
+.sticker {
+  position: absolute;
+  top: 0; right: 0;
+  width: 30px; height: 30px;
+  padding: 3px 2px 0 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: flex-start; justify-content: flex-end;
+}
+.sticker span {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #9fb6d0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 400;
+}
+.icons .ic { position: relative; }
+.icons .ic.got::after {
+  content: "✓";
+  position: absolute;
+  right: -3px; bottom: -2px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: #3bb54a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 13px;
+  text-align: center;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+/* итог месяца: сколько садика и занятий — для оплаты */
+.summary {
+  margin-top: 14px;
+  padding: 10px 14px 12px;
+  background: rgba(255, 255, 255, .92);
+  border: 4px solid var(--board-edge);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+.sum-title { text-align: center; font-size: 18px; font-weight: 900; color: var(--accent); margin-bottom: 6px; }
+.sum-row {
+  display: grid;
+  grid-template-columns: 30px 1fr auto auto;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 0;
+  border-top: 2px dotted #e6e1d6;
+  font-size: 16px;
+}
+.sum-title + .sum-row { border-top: 0; }
+.sum-row b { font-size: 22px; font-weight: 400; }
+.sum-row strong { font-size: 22px; font-weight: 900; color: var(--blue-dark); }
+.sum-row em { font-style: normal; font-size: 13px; color: #7a8699; }
+
+.sticker.on span { border-color: #f5b400; background: #fff0f7; transform: scale(1.25); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  margin-top: 8px;
+  padding: 8px 4px 2px;
+  border-top: 3px dotted var(--board-edge);
+  font-size: 13px;
+}
+.legend div { display: flex; align-items: center; gap: 4px; }
+.legend i { width: 16px; height: 16px; border-radius: 5px; display: inline-block; }
+.legend b { font-size: 19px; font-weight: 400; }
+
+.hint-bottom {
+  text-align: center;
+  margin: 12px auto 0;
+  padding: 6px 14px;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 14px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, .8);
+  border-radius: 999px;
+}
+
+/* =====================================================================
+   КАРТОЧКА ДНЯ
+   ===================================================================== */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(90, 30, 74, .5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 10;
+}
+.overlay.open { display: flex; }
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: 30px;
+  padding: 18px 16px 16px;
+  text-align: center;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, .6), 0 12px 40px rgba(0, 0, 0, .3);
+  border: 5px solid var(--weekday-edge);
+  animation: pop .3s cubic-bezier(.2, 1.4, .5, 1);
+}
+.card.we { border-color: var(--weekend-edge); }
+@keyframes pop { from { transform: scale(.7) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.card-boy { height: 170px; width: auto; max-width: 200px; object-fit: contain; transform-origin: 50% 100%; }
+.card-boy.talking { animation: talk .5s ease-in-out infinite alternate; }
+
+.card-num {
+  font-size: 84px;
+  font-weight: 900;
+  line-height: .95;
+  color: var(--blue);
+  text-shadow: 0 5px 0 rgba(163, 25, 95, .15);
+}
+.card.we .card-num { color: var(--green); }
+
+.card-date { font-size: 21px; margin-top: 4px; }
+
+.badge {
+  display: inline-block;
+  margin: 10px 0 4px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 20px;
+  background: var(--weekday);
+  color: var(--blue-dark);
+}
+.card.we .badge { background: var(--weekend); color: var(--green-dark); }
+
+.card-acts {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 4px;
+}
+.act {
+  background: #fff;
+  border-radius: 18px;
+  padding: 8px 10px 6px;
+  min-width: 96px;
+  box-shadow: var(--shadow);
+  animation: pop .4s cubic-bezier(.2, 1.4, .5, 1) backwards;
+}
+.act:nth-child(2) { animation-delay: .1s; }
+.act.tap {
+  position: relative;
+  border: 3px solid transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.act.tap:active { transform: scale(.95); }
+.act.done { border-color: #3bb54a; background: #effbe9; }
+.act .mark { font-size: 12px; color: #7a8699; margin-top: 2px; }
+.act.done .mark { color: #2a8a36; font-weight: 900; }
+.act .e { font-size: 54px; line-height: 1.1; font-weight: 400; }
+.act .t { font-size: 15px; }
+
+.card-text {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 10px 2px 14px;
+  color: #3a4a66;
+}
+
+.voice-hint {
+  display: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9a4b00;
+  background: #fff1dc;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.voice-hint.show { display: block; }
+
+.card-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.card-btns button {
+  border: 3px solid #fff;
+  border-radius: 18px;
+  padding: 12px 6px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 900;
+  white-space: nowrap;
+  color: #fff;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.btn-say   { background: var(--blue); }
+.btn-star  { background: #f5a300; }
+.btn-close { background: #b59ab0; grid-column: 1 / -1; }
+
+/* салют из звёздочек */
+.burst { position: fixed; pointer-events: none; z-index: 20; font-size: 26px; font-weight: 400; animation: burst .9s ease-out forwards; }
+@keyframes burst { to { transform: translate(var(--dx), var(--dy)) scale(.4) rotate(200deg); opacity: 0; } }
+</style>
+</head>
+<body data-season="autumn">
+
+<div class="scene" aria-hidden="true">
+  <div class="garland" id="garland"></div>
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+  <div class="sky-sun" id="skySun">🌞</div>
+  <div class="fall" id="fall"></div>
+  <div class="flyers" id="flyers"></div>
+  <svg class="hills" viewBox="0 0 400 170" preserveAspectRatio="none">
+    <path class="back" d="M0 80 Q70 30 150 70 T300 60 T400 55 V170 H0 Z"/>
+    <path class="front" d="M0 120 Q90 80 190 115 T400 100 V170 H0 Z"/>
+  </svg>
+  <div class="ground-deco" id="groundDeco"></div>
+</div>
+
+<div class="page">
+  <header>
+    <div class="boy-wrap" id="boyWrap" role="button" aria-label="Что сегодня?">
+      <img class="boy" id="boy" alt="Катя">
+      <div class="bubble">Нажми!</div>
+    </div>
+    <div class="title">
+      <h1 class="name" id="name">Катя</h1>
+      <div class="month-row">
+        <button class="arrow" id="prev" aria-label="Прошлый месяц">◀</button>
+        <div class="month" id="month"></div>
+        <button class="arrow" id="next" aria-label="Следующий месяц">▶</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="action-row">
+    <button class="today-btn" id="todayBtn">💖 Сегодня</button>
+    <button class="music-btn" id="musicBtn" aria-label="Музыка">🎵</button>
+  </div>
+
+  <div class="board">
+    <div class="snowcap"></div>
+    <span class="corner tl" id="cornerTL"></span>
+    <span class="corner tr" id="cornerTR"></span>
+    <span class="corner bl" id="cornerBL"></span>
+    <span class="corner br" id="cornerBR"></span>
+    <div class="grid" id="grid"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="hint-bottom">Нажми на день — и я расскажу, что тебя ждёт!</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card" id="card">
+    <div class="card-top">
+      <img class="card-boy" id="cBoy" alt="">
+      <div>
+        <div class="card-num" id="cNum"></div>
+      </div>
+    </div>
+    <div class="card-date" id="cDate"></div>
+    <div class="badge" id="cBadge"></div>
+    <div class="card-acts" id="cActs"></div>
+    <div class="card-text" id="cText"></div>
+    <div class="voice-hint" id="voiceHint">
+      На телефоне не нашёлся русский голос. Включи его: Настройки → Язык и ввод → Синтез речи → Синтезатор речи Google → Установка голосовых данных → Русский.
+    </div>
+    <div class="card-btns">
+      <button class="btn-say" id="bSay">🔊 Ещё раз</button>
+      <button class="btn-star" id="bStar">⭐ Звёздочка</button>
+      <button class="btn-close" id="bClose">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   НАСТРОЙКИ — здесь можно менять имя, расписание и фразы.
+   После правки фраз их нужно заново озвучить (озвучка\озвучить.cmd),
+   а до этого новые фразы прочитает голос телефона.
+   ===================================================================== */
+
+const CHILD = "Катя";
+
+// Занятия: картинка, подпись, как произносить,
+// и множественное ли число (чтобы сказать «будут танцы», но «будет рисование»)
+// done — что сказать, когда отмечаешь, что Катя была на занятии
+const ACTIVITIES = {
+  dance:   { emoji: "🩰", label: "танцы",       say: "танцы",              plural: true,
+             done: "Умница! Ты была на танцах!" },
+  drawing: { emoji: "🎨", label: "рисование",   say: "рисование",          plural: false,
+             done: "Умница! Ты была на рисовании!" },
+  tales:   { emoji: "📖", label: "нейросказки", say: "нейросказки у Гали", plural: true,
+             done: "Умница! Ты слушала нейросказки у Гали!" },
+};
+
+// Расписание по дням недели: 1 — понедельник ... 5 — пятница
+const SCHEDULE = {
+  1: ["dance", "tales"],   // понедельник
+  2: ["drawing"],          // вторник
+  3: ["dance"],            // среда
+  4: ["drawing"],          // четверг
+  5: ["tales"],            // пятница
+};
+
+// Подбадривающие фразы для садиковых дней
+const MOTIVATION_WEEKDAY = [
+  "У тебя будет классный день!",
+  "У тебя сегодня самая красивая причёска!",
+  "В садике будет самая вкусная сладкая каша!",
+  "Друзья в садике очень ждут тебя!",
+  "Ты сильная и смелая!",
+  "Ты у нас самая лучшая!",
+  "Мама очень-очень тебя любит!",
+  "Ты узнаешь что-то новое и интересное!",
+  "Улыбнись — и день будет весёлым!",
+  "Ты отлично со всем справишься!",
+  "Поиграй с ребятами в интересную игру!",
+  "Вечером расскажешь, что было интересного?",
+  "Ты такая умница, что ходишь в садик!",
+  "На прогулке поищи что-нибудь интересное!",
+  "Ты растёшь не по дням, а по часам!",
+  "Покушаешь хорошо — и станешь сильной и здоровой!",
+  "Хорошего тебе дня, солнышко!",
+  "Ты так здорово умеешь смеяться!",
+  "Каждый день ты становишься всё умнее!",
+  "Ты у нас настоящая принцесса!",
+];
+
+// Подбадривающие фразы для выходных
+const MOTIVATION_WEEKEND = [
+  "Ты проведёшь день со своей любимой семьёй!",
+  "Можно подольше поспать и поиграть!",
+  "Давай погуляем все вместе!",
+  "Мама очень рада побыть с тобой весь день!",
+  "Будем играть, читать книжки и веселиться!",
+  "Можно устроить чаепитие для кукол!",
+  "Отличный день для настоящего приключения!",
+  "Выходной — время для обнимашек!",
+  "Давай вместе порисуем или что-нибудь слепим!",
+  "Ты отдохнёшь и наберёшься сил!",
+  "Будет весёлый семейный день!",
+  "Давай испечём что-нибудь вкусное!",
+  "Можно покачаться на качелях!",
+  "Устроим дома весёлую игру!",
+  "Мы будем вместе целый день!",
+];
+
+// Похвала за прошедшие дни
+const PRAISE_PAST = [
+  "Ты была умницей!",
+  "Какой был хороший день!",
+  "Ты отлично справилась!",
+  "Я тобой горжусь!",
+];
+
+// Что сказать, когда ставят звёздочку
+const STAR_PHRASES = [
+  "Умница, Катя! Ещё одна звёздочка!",
+  "Ура! Звёздочка твоя!",
+  "Вот это да! Ты заработала звёздочку!",
+];
+
+// Времена года: картинка Кати, что падает с неба, что стоит на земле.
+// Картинки Кати лежат в папке img. Если картинки сезона нет — берётся осенняя.
+const SEASONS = {
+  autumn: {
+    boy: "img/girl-autumn.png",
+    sun: "🌞",
+    // что падает: leaf — жёлтый листик, maple — жёлтый кленовый, drop — капелька, остальное — картинка как есть
+    fall: ["leaf", "maple", "drop", "leaf", "drop", "leaf", "maple", "drop"],
+    fly: [],                          // что летает поперёк экрана
+    ground: ['<img src="img/hedgehog.png" alt="">', "🍄", "🌰", '<span class="big">🍁</span>', "🍄", '<img src="img/squirrel.png" alt="">'],
+    corners: ["💖", "🍂", "🍄", "🎀"],   // углы календаря: верх-лево, верх-право, низ-лево, низ-право
+    color: "#ec4899",
+  },
+  winter: {
+    boy: "img/girl-winter.png",
+    sun: "🌨️",
+    fall: ["❄️", "❄", "❄", "•", "•", "❄️"],
+    fly: [],
+    ground: ['<span class="big">🎄</span>', "🐇", '<span class="big">⛄</span>', "🎁", '<span class="big">🎄</span>'],
+    corners: ["❄️", "💜", "⛄", "🎀"],
+    color: "#b04fd6",
+  },
+  spring: {
+    boy: "img/girl-spring.png",
+    sun: "🌞",
+    fall: ["🌸", "🌸", "blossom", "🌸", "blossom"],
+    fly: ["🦋", "🦋", "🦋", "🦋"],
+    ground: ["🌷", "🐦", '<span class="big">🌸</span>', "🌼", "🐝", "🌷"],
+    corners: ["🌷", "🦋", "🎀", "💗"],
+    color: "#ec4899",
+  },
+  summer: {
+    boy: "img/girl-summer.png",
+    sun: "🌞",
+    fall: ["daisy", "daisy", "daisy", "daisy"],
+    fly: ["🐞", "🐞", "🐞"],
+    ground: ["🌺", '<span class="big">🌳</span>', "🍓", "🐞", '<span class="big">🌷</span>'],
+    corners: ["🌺", "🦋", "🍓", "💖"],
+    color: "#f0507a",
+  },
+};
+const SEASON_OF_MONTH = ["winter", "winter", "spring", "spring", "spring", "summer",
+                         "summer", "summer", "autumn", "autumn", "autumn", "winter"];
+
+/* =====================================================================
+   Дальше — сама программа
+   ===================================================================== */
+
+const MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const MONTHS_PREP = ["январь", "февраль", "март", "апрель", "май", "июнь",
+                     "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+const MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня",
+                    "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const WEEKDAYS = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
+const DOW_SHORT = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+
+// Числа словами, чтобы голос сказал «первое октября», а не «один октября»
+const ORD_1_19 = ["", "первое", "второе", "третье", "четвёртое", "пятое", "шестое", "седьмое",
+  "восьмое", "девятое", "десятое", "одиннадцатое", "двенадцатое", "тринадцатое",
+  "четырнадцатое", "пятнадцатое", "шестнадцатое", "семнадцатое", "восемнадцатое", "девятнадцатое"];
+
+function ordinal(n) {
+  if (n < 20) return ORD_1_19[n];
+  if (n === 20) return "двадцатое";
+  if (n === 30) return "тридцатое";
+  return (n < 30 ? "двадцать " : "тридцать ") + ORD_1_19[n % 10];
+}
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function isWeekend(d) { const w = d.getDay(); return w === 0 || w === 6; }
+function activitiesOf(d) { return (SCHEDULE[d.getDay()] || []).map(k => ACTIVITIES[k]); }
+function keyOf(d) { return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+function listWords(words) {
+  if (words.length <= 1) return words.join("");
+  return words.slice(0, -1).join(", ") + " и " + words[words.length - 1];
+}
+
+// Случайная фраза, но не та же, что в прошлый раз
+const lastPicked = new Map();
+function pick(list) {
+  let i = Math.floor(Math.random() * list.length);
+  if (list.length > 1 && i === lastPicked.get(list)) i = (i + 1) % list.length;
+  lastPicked.set(list, i);
+  return list[i];
+}
+
+/* ---------- Кусочки речи ----------
+   Рассказ про день собирается из кусочков. Каждый кусочек заранее озвучен
+   и лежит в папке audio под своим номером. */
+
+function datePiece(day, month) { return capitalize(ordinal(day)) + " " + MONTHS_GEN[month] + ","; }
+function weekdayPiece(w) { return WEEKDAYS[w] + "."; }
+
+// when: today | tomorrow | future | yesterday | past
+const BODY = {
+  today:     { wd: "Сегодня ты идёшь в садик.",        we: "Сегодня выходной, садика нет!" },
+  tomorrow:  { wd: "Завтра ты пойдёшь в садик.",        we: "Завтра выходной, садика не будет!" },
+  future:    { wd: "В этот день ты пойдёшь в садик.",   we: "В этот день выходной, садика не будет!" },
+  yesterday: { wd: "Вчера ты ходила в садик.",           we: "Вчера был выходной, мы были вместе." },
+  past:      { wd: "В этот день ты ходила в садик.",     we: "Это был выходной, мы были вместе." },
+};
+
+function actsPiece(acts, when) {
+  if (!acts.length) return null;
+  const words = listWords(acts.map(a => a.say));
+  const many = acts.length > 1 || acts[0].plural;
+  if (when === "today") return "А ещё у тебя " + words + "!";
+  if (when === "yesterday" || when === "past") return "А ещё у тебя " + (many ? "были " : "было ") + words + ".";
+  return "А ещё у тебя " + (many ? "будут " : "будет ") + words + "!";
+}
+
+function dayPieces(d) {
+  const diff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+  const when = diff === 0 ? "today" : diff === 1 ? "tomorrow" : diff > 1 ? "future"
+             : diff === -1 ? "yesterday" : "past";
+  const we = isWeekend(d);
+  const p = ["Привет, " + CHILD + "!", datePiece(d.getDate(), d.getMonth()), weekdayPiece(d.getDay())];
+  p.push(BODY[when][we ? "we" : "wd"]);
+  if (!we) { const a = actsPiece(activitiesOf(d), when); if (a) p.push(a); }
+  if (when === "yesterday" || when === "past") p.push(pick(PRAISE_PAST));
+  else p.push(pick(we ? MOTIVATION_WEEKEND : MOTIVATION_WEEKDAY));
+  return p;
+}
+
+// Все кусочки, какие только бывают, — по этому списку делается озвучка
+function allPieces() {
+  const set = new Set(["Привет, " + CHILD + "!"]);
+  for (let m = 0; m < 12; m++) {
+    const days = new Date(2028, m + 1, 0).getDate();   // 2028 — високосный, есть 29 февраля
+    for (let d = 1; d <= days; d++) set.add(datePiece(d, m));
+  }
+  for (let w = 0; w < 7; w++) set.add(weekdayPiece(w));
+  for (const when in BODY) {
+    set.add(BODY[when].wd); set.add(BODY[when].we);
+    for (let w = 1; w <= 5; w++) {
+      const a = actsPiece((SCHEDULE[w] || []).map(k => ACTIVITIES[k]), when);
+      if (a) set.add(a);
+    }
+  }
+  [MOTIVATION_WEEKDAY, MOTIVATION_WEEKEND, PRAISE_PAST, STAR_PHRASES].forEach(l => l.forEach(t => set.add(t)));
+  Object.values(ACTIVITIES).forEach(a => set.add(a.done));
+  return [...set];
+}
+
+// Номер кусочка = короткий отпечаток текста (FNV-1a)
+function pieceId(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+/* ---------- Голос ---------- */
+const hasTTS = typeof window !== "undefined" && "speechSynthesis" in window;
+let ruVoice = null, voicesChecked = false;
+function findVoice() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  voicesChecked = true;
+  const ru = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("ru"));
+  ruVoice = ru.find(v => /google/i.test(v.name)) || ru.find(v => v.localService) || ru[0] || null;
+}
+
+let recorded = null;         // какие кусочки озвучены (из audio/index.json)
+let speechToken = 0;
+let player = null;
+
+function setTalking(on) {
+  document.getElementById("boy").classList.toggle("talking", on);
+  document.getElementById("cBoy").classList.toggle("talking", on);
+  duckMusic(on);
+}
+
+function stopSpeech() {
+  speechToken++;
+  if (player) { player.onended = player.onerror = null; player.pause(); }
+  if (hasTTS) speechSynthesis.cancel();
+  setTalking(false);
+}
+
+function say(pieces) {
+  stopSpeech();
+  const token = speechToken;
+  // все кусочки загружаются сразу — чтобы между ними не было пауз
+  const clips = pieces.map(text => {
+    const id = pieceId(text);
+    return recorded && !recorded.has(id) ? null : loadClip(id);
+  });
+  let i = 0;
+  const next = () => {
+    if (token !== speechToken) return;
+    if (i >= pieces.length) { setTalking(false); return; }
+    const text = pieces[i], clip = clips[i];
+    i++;
+    setTalking(true);
+    if (!clip) { robot(text, next); return; }
+    clip.then(src => {
+      if (token !== speechToken) return;
+      const a = new Audio(src);
+      player = a;
+      a.onended = next;
+      a.onerror = () => robot(text, next);
+      a.play().catch(() => { if (token === speechToken) robot(text, next); });
+    });
+  };
+  next();
+}
+
+// Файл фразы забирается целиком и проигрывается из памяти — так звук надёжно работает
+// и из сохранённого на телефоне, и без интернета. Уже загруженные фразы запоминаются.
+const clipCache = new Map();
+function loadClip(id) {
+  if (!clipCache.has(id)) {
+    const url = "audio/" + id + ".mp3";
+    clipCache.set(id, fetch(url)
+      .then(r => { if (!r.ok) throw new Error("нет файла"); return r.blob(); })
+      .then(b => URL.createObjectURL(b))
+      .catch(() => { clipCache.delete(id); return url; }));   // не вышло — пробуем напрямую
+  }
+  return clipCache.get(id);
+}
+
+// Запасной голос — встроенный голос телефона
+function robot(text, done) {
+  if (!hasTTS) { done(); return; }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ru-RU";
+  if (ruVoice) u.voice = ruVoice;
+  u.rate = 1.05;
+  u.pitch = 1.15;
+  u.onend = done;
+  u.onerror = done;
+  speechSynthesis.speak(u);
+}
+
+/* ---------- Музыка: нежная музыкальная шкатулка ----------
+   Мелодия не из файла — телефон сам играет её нотами. Пока трекер говорит, музыка затихает. */
+
+const MUSIC_VOLUME = 0.07;       // громкость музыки (0 — тишина, 0.2 — громко)
+const MUSIC_STEP = 0.4;          // длина одной нотки в секундах: больше — медленнее
+// 8 тактов по 8 ноток (номера нот MIDI, null — пауза); аккорды: До — Ля-минор — Фа — Соль
+const MELODY = [
+  76, 79, 84, 79, 76, null, 72, null,
+  76, 72, 69, 72, 76, null, 79, null,
+  77, 81, 84, 81, 77, null, 76, null,
+  74, 79, 83, 79, 74, null, 71, null,
+  76, 79, 84, 86, 84, null, 79, null,
+  81, 79, 76, 72, 76, null, 69, null,
+  77, 76, 74, 72, 74, null, 79, null,
+  72, 76, 79, 84, 72, null, null, null,
+];
+const BASS = [48, 45, 41, 43, 48, 45, 41, 48];   // нижняя нота каждого такта
+
+let music = null;
+let musicOn = true;
+try { musicOn = localStorage.getItem("katya-music") !== "off"; } catch (e) {}
+
+function midiHz(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+
+function startMusic() {
+  if (music) { music.ctx.resume(); return; }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  const ctx = new Ctx();
+  const master = ctx.createGain();
+  master.gain.value = MUSIC_VOLUME;
+  // лёгкое эхо, чтобы звучало как шкатулка в комнате
+  const echo = ctx.createDelay();
+  echo.delayTime.value = MUSIC_STEP * 0.75;
+  const fb = ctx.createGain();
+  fb.gain.value = 0.28;
+  const wet = ctx.createGain();
+  wet.gain.value = 0.3;
+  master.connect(ctx.destination);
+  master.connect(echo); echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(ctx.destination);
+
+  function note(n, t, len, vol, type) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.value = midiHz(n);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + len + 0.05);
+  }
+
+  let step = 0, when = ctx.currentTime + 0.1;
+  const timer = setInterval(() => {
+    while (when < ctx.currentTime + 0.5) {
+      const n = MELODY[step % MELODY.length];
+      if (n) {
+        const v = 0.55 + Math.random() * 0.15;
+        note(n, when, 1.6, v, "sine");
+        note(n + 12, when, 0.6, v * 0.18, "sine");        // звонкий обертон
+      }
+      if (step % 8 === 0) note(BASS[(step / 8) % BASS.length], when, MUSIC_STEP * 7, 0.35, "triangle");
+      step++;
+      when += MUSIC_STEP;
+    }
+  }, 120);
+  music = { ctx, master, timer };
+}
+
+function stopMusic() { if (music) music.ctx.suspend(); }
+
+function duckMusic(talking) {
+  if (!music) return;
+  const g = music.master.gain, t = music.ctx.currentTime;
+  g.cancelScheduledValues(t);
+  g.setTargetAtTime(talking ? MUSIC_VOLUME * 0.3 : MUSIC_VOLUME, t, 0.15);
+}
+
+function initMusic() {
+  const btn = document.getElementById("musicBtn");
+  const paint = () => { btn.classList.toggle("off", !musicOn); btn.textContent = musicOn ? "🎵" : "🔇"; };
+  paint();
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    musicOn = !musicOn;
+    try { localStorage.setItem("katya-music", musicOn ? "on" : "off"); } catch (err) {}
+    musicOn ? startMusic() : stopMusic();
+    paint();
+  });
+  // браузер разрешает звук только после первого касания экрана
+  const firstTouch = () => { if (musicOn) startMusic(); };
+  document.addEventListener("pointerdown", firstTouch, { once: true });
+  // свернули приложение — музыка замолкает
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopMusic(); else if (musicOn && music) startMusic();
+  });
+}
+
+/* ---------- Звёздочки (память телефона) ---------- */
+const STORE_KEY = "katya-stars";
+let stars = {};
+
+function loadStars() {
+  try { stars = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch (e) { stars = {}; }
+}
+function saveStars() { try { localStorage.setItem(STORE_KEY, JSON.stringify(stars)); } catch (e) {} }
+
+// Посещения занятий: { "2026-10-5": ["dance", "tales"] }. Звёздочка (stars) = был в садике.
+const VISITS_KEY = "katya-visits";
+let visits = {};
+function loadVisits() {
+  try { visits = JSON.parse(localStorage.getItem(VISITS_KEY) || "{}") || {}; } catch (e) { visits = {}; }
+}
+function saveVisits() { try { localStorage.setItem(VISITS_KEY, JSON.stringify(visits)); } catch (e) {} }
+function wasAt(d, act) { return (visits[keyOf(d)] || []).includes(act); }
+
+function toggleVisit(d, act, x, y) {
+  const k = keyOf(d);
+  const list = visits[k] || [];
+  if (list.includes(act)) {
+    visits[k] = list.filter(a => a !== act);
+    if (!visits[k].length) delete visits[k];
+  } else {
+    visits[k] = list.concat(act);
+    burst(x, y);
+    say([ACTIVITIES[act].done]);
+  }
+  saveVisits();
+  render();
+  if (current && keyOf(current) === k) paintActs();
+}
+
+// Итог месяца: сколько дней садика и сколько раз каждое занятие (из скольких по расписанию)
+function renderSummary(y, m) {
+  const days = new Date(y, m + 1, 0).getDate();
+  let sadik = 0, sadikPlan = 0;
+  const cnt = {}, plan = {};
+  Object.keys(ACTIVITIES).forEach(a => { cnt[a] = 0; plan[a] = 0; });
+  for (let n = 1; n <= days; n++) {
+    const d = new Date(y, m, n);
+    if (isWeekend(d)) continue;
+    sadikPlan++;
+    if (stars[keyOf(d)]) sadik++;
+    (SCHEDULE[d.getDay()] || []).forEach(a => { plan[a]++; if (wasAt(d, a)) cnt[a]++; });
+  }
+  const row = (icon, label, have, all) =>
+    '<div class="sum-row"><b>' + icon + '</b><span>' + label + '</span><strong>' + have +
+    '</strong><em>из ' + all + '</em></div>';
+  document.getElementById("summary").innerHTML =
+    '<div class="sum-title">Итого за ' + MONTHS_PREP[m] + '</div>' +
+    row("⭐", "садик, дней", sadik, sadikPlan) +
+    Object.entries(ACTIVITIES).map(([k, a]) => row(a.emoji, a.label, cnt[k], plan[k])).join("");
+}
+
+function burst(x, y) {
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement("span");
+    s.className = "burst";
+    s.textContent = ["⭐", "💖", "✨"][i % 3];
+    const a = (Math.PI * 2 * i) / 10;
+    s.style.left = x - 13 + "px";
+    s.style.top = y - 13 + "px";
+    s.style.setProperty("--dx", Math.cos(a) * 90 + "px");
+    s.style.setProperty("--dy", Math.sin(a) * 90 + "px");
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1000);
+  }
+}
+
+/* ---------- Времена года ---------- */
+let currentSeason = null;
+
+function applySeason(month) {
+  const name = SEASON_OF_MONTH[month];
+  if (name === currentSeason) return;
+  document.body.classList.toggle("garland-on", name === "winter");
+  currentSeason = name;
+  const s = SEASONS[name];
+  document.body.dataset.season = name;
+  document.getElementById("themeColor").content = s.color;
+  document.getElementById("skySun").textContent = s.sun;
+  document.getElementById("groundDeco").innerHTML = s.ground.map(g => "<div>" + g + "</div>").join("");
+  ["cornerTL", "cornerTR", "cornerBL", "cornerBR"].forEach((id, i) => {
+    document.getElementById(id).textContent = s.corners[i] || "";
+  });
+
+  [document.getElementById("boy"), document.getElementById("cBoy")].forEach(img => {
+    img.onerror = () => { img.onerror = null; img.src = SEASONS.autumn.boy; };
+    img.src = s.boy;
+  });
+
+  const fall = document.getElementById("fall");
+  fall.innerHTML = "";
+  const count = name === "winter" ? 22 : 14;
+  for (let i = 0; i < count; i++) {
+    const sp = document.createElement("span");
+    const b = document.createElement("b");
+    const ch = s.fall[i % s.fall.length];
+    let size = 16 + Math.random() * 16;
+    let dur = 9 + Math.random() * 9;
+    if (SHAPES[ch]) {
+      b.innerHTML = SHAPES[ch](i);
+    } else if (ch === "maple") {
+      b.textContent = "🍁";
+      sp.className = "yellow";
+    } else if (ch === "drop") {
+      b.innerHTML = "<i></i>";
+      sp.className = "rain";
+      dur = 2.5 + Math.random() * 2;              // капли падают быстро и прямо
+    } else {
+      b.textContent = ch;
+      if (name === "winter" && ch !== "❄️") sp.className = "snow";
+      if (ch === "•") size = 20 + Math.random() * 14;
+    }
+    sp.style.left = Math.random() * 100 + "%";
+    sp.style.fontSize = size + "px";
+    sp.style.animationDuration = dur + "s";
+    sp.style.animationDelay = -Math.random() * dur + "s";
+    b.style.animationDuration = 2 + Math.random() * 2 + "s";
+    sp.appendChild(b);
+    fall.appendChild(sp);
+  }
+
+  const flyers = document.getElementById("flyers");
+  flyers.innerHTML = "";
+  s.fly.forEach((ch, i) => {
+    const sp = document.createElement("span");
+    const b = document.createElement("b");
+    b.textContent = ch;
+    if (i % 2) sp.className = "back";
+    const dur = 16 + Math.random() * 12;
+    sp.style.top = 12 + Math.random() * 70 + "%";
+    sp.style.fontSize = 24 + Math.random() * 12 + "px";
+    sp.style.animationDuration = dur + "s";
+    sp.style.animationDelay = -Math.random() * dur + "s";
+    b.style.animationDuration = 1.2 + Math.random() * 1.2 + "s";
+    sp.appendChild(b);
+    flyers.appendChild(sp);
+  });
+}
+
+// Нарисованные фигурки: жёлтый листик, ромашка, розовый цветок
+const LEAF_COLORS = ["#ffd23f", "#f7b733", "#ffc93c", "#f59e0b", "#ffe066"];
+const SHAPES = {
+  leaf: i => {
+    const c = LEAF_COLORS[i % LEAF_COLORS.length];
+    return '<svg viewBox="0 0 24 24"><path d="M12 1C6 6 3.5 11 5.5 16.5 7 20.5 9.5 22 12 22s5-1.5 6.5-5.5C20.5 11 18 6 12 1z" fill="' + c +
+      '"/><path d="M12 4v19M12 10l-3.5-3M12 14l4-3.5M12 17.5l-4-3" stroke="#c98a12" stroke-width="1" fill="none" stroke-linecap="round"/></svg>';
+  },
+  daisy: () => {
+    let petals = "";
+    for (let k = 0; k < 10; k++) {
+      petals += '<ellipse cy="-6.2" rx="2.4" ry="5.2" fill="#fff" stroke="#e3e8ef" stroke-width=".5" transform="rotate(' + k * 36 + ')"/>';
+    }
+    return '<svg viewBox="-12 -12 24 24">' + petals + '<circle r="3.8" fill="#ffc62b" stroke="#f29d0b" stroke-width=".6"/></svg>';
+  },
+  blossom: () => {
+    let petals = "";
+    for (let k = 0; k < 5; k++) {
+      petals += '<circle cy="-5.5" r="4.6" fill="#ff9ec7" transform="rotate(' + k * 72 + ')"/>';
+    }
+    return '<svg viewBox="-12 -12 24 24">' + petals + '<circle r="3" fill="#fff3a6"/></svg>';
+  },
+};
+
+/* ---------- Календарь ---------- */
+const grid = document.getElementById("grid");
+let view;
+
+function render() {
+  const y = view.getFullYear(), m = view.getMonth();
+  applySeason(m);
+  document.getElementById("month").innerHTML = MONTHS[m] + "<small>" + y + "</small>";
+  grid.innerHTML = "";
+
+  DOW_SHORT.forEach((t, i) => {
+    const el = document.createElement("div");
+    el.className = "dow" + (i >= 5 ? " we" : "");
+    el.textContent = t;
+    grid.appendChild(el);
+  });
+
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;   // пустые клетки до 1-го числа
+  const days = new Date(y, m + 1, 0).getDate();
+  const today = startOfDay(new Date());
+
+  for (let i = 0; i < lead; i++) grid.appendChild(emptyCell());
+
+  for (let n = 1; n <= days; n++) {
+    const d = new Date(y, m, n);
+    const k = keyOf(d);
+    const cell = document.createElement("div");
+    cell.className = "cell " + (isWeekend(d) ? "we" : "wd") +
+      (+d === +today ? " today" : d < today ? " past" : "");
+    cell.setAttribute("role", "button");
+
+    const num = document.createElement("div");
+    num.className = "num";
+    num.textContent = n;
+
+    const icons = document.createElement("div");
+    icons.className = "icons";
+    if (isWeekend(d)) {
+      icons.textContent = "🏠";
+    } else {
+      (SCHEDULE[d.getDay()] || []).forEach(a => {
+        const ic = document.createElement("span");
+        ic.className = "ic" + (wasAt(d, a) ? " got" : "");
+        ic.textContent = ACTIVITIES[a].emoji;
+        icons.appendChild(ic);
+      });
+    }
+    cell.append(num, icons);
+
+    if (!isWeekend(d)) {
+      const st = document.createElement("button");
+      st.className = "sticker" + (stars[k] ? " on" : "");
+      st.setAttribute("aria-label", "Была в садике");
+      st.innerHTML = "<span>" + (stars[k] ? "⭐" : "") + "</span>";
+      st.addEventListener("click", e => { e.stopPropagation(); toggleStar(d, e.clientX, e.clientY); });
+      cell.append(st);
+    }
+    cell.addEventListener("click", () => openDay(d));
+    grid.appendChild(cell);
+  }
+
+  const tail = (7 - (lead + days) % 7) % 7;
+  for (let i = 0; i < tail; i++) grid.appendChild(emptyCell());
+
+  renderSummary(y, m);
+}
+
+function emptyCell() {
+  const el = document.createElement("div");
+  el.className = "cell empty";
+  return el;
+}
+
+function toggleStar(d, x, y) {
+  const k = keyOf(d);
+  if (stars[k]) {
+    delete stars[k];
+  } else {
+    stars[k] = 1;
+    burst(x, y);
+    say([pick(STAR_PHRASES)]);
+  }
+  saveStars();
+  render();
+  if (current && keyOf(current) === k) updateStarBtn();
+}
+
+/* ---------- Карточка дня ---------- */
+const overlay = document.getElementById("overlay");
+const card = document.getElementById("card");
+let current = null;
+let currentPieces = [];
+
+function openDay(d) {
+  current = d;
+  const we = isWeekend(d);
+  card.className = "card" + (we ? " we" : "");
+  document.getElementById("cNum").textContent = d.getDate();
+  document.getElementById("cDate").textContent = MONTHS_GEN[d.getMonth()] + ", " + WEEKDAYS[d.getDay()];
+  document.getElementById("cBadge").textContent = we ? "🏠 Выходной" : "🏫 Садик";
+
+  paintActs();
+  document.getElementById("bStar").style.display = we ? "none" : "";
+
+  currentPieces = dayPieces(d);
+  document.getElementById("cText").textContent = currentPieces.join(" ");
+  updateStarBtn();
+
+  const noVoice = !recorded && (!hasTTS || (voicesChecked && !ruVoice));
+  document.getElementById("voiceHint").classList.toggle("show", noVoice);
+
+  overlay.classList.add("open");
+  say(currentPieces);
+}
+
+function updateStarBtn() {
+  document.getElementById("bStar").textContent = stars[keyOf(current)] ? "⭐ Убрать" : "⭐ Была в садике";
+}
+
+// Карточки занятий: нажала — появилась галочка «был на занятии»
+function paintActs() {
+  const d = current;
+  const box = document.getElementById("cActs");
+  box.innerHTML = "";
+  if (isWeekend(d)) {
+    box.innerHTML = '<div class="act"><div class="e">🤗</div><div class="t">день с семьёй</div></div>';
+    return;
+  }
+  (SCHEDULE[d.getDay()] || []).forEach(k => {
+    const a = ACTIVITIES[k];
+    const el = document.createElement("button");
+    el.className = "act tap" + (wasAt(d, k) ? " done" : "");
+    el.innerHTML = '<div class="e"></div><div class="t"></div><div class="mark"></div>';
+    el.querySelector(".e").textContent = a.emoji;
+    el.querySelector(".t").textContent = a.label;
+    el.querySelector(".mark").textContent = wasAt(d, k) ? "✅ была" : "нажми, если была";
+    el.addEventListener("click", e => toggleVisit(d, k, e.clientX, e.clientY));
+    box.appendChild(el);
+  });
+}
+
+function closeDay() {
+  overlay.classList.remove("open");
+  stopSpeech();
+  current = null;
+}
+
+function openToday() {
+  const t = new Date();
+  view = new Date(t.getFullYear(), t.getMonth(), 1);
+  render();
+  openDay(startOfDay(t));
+}
+
+/* ---------- Запуск ---------- */
+if (typeof document !== "undefined" && document.getElementById("grid")) {
+  if (hasTTS) { findVoice(); speechSynthesis.onvoiceschanged = findVoice; }
+  loadStars();
+  loadVisits();
+
+  fetch("audio/index.json")
+    .then(r => r.ok ? r.json() : null)
+    .then(list => { if (list) recorded = new Set(list); })
+    .catch(() => {});
+
+  document.getElementById("bSay").addEventListener("click", () => say(currentPieces));
+  document.getElementById("bStar").addEventListener("click", e => toggleStar(current, e.clientX, e.clientY));
+  document.getElementById("bClose").addEventListener("click", closeDay);
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeDay(); });
+
+  document.getElementById("prev").addEventListener("click", () => {
+    view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render();
+  });
+  document.getElementById("next").addEventListener("click", () => {
+    view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render();
+  });
+  document.getElementById("todayBtn").addEventListener("click", openToday);
+  document.getElementById("boyWrap").addEventListener("click", openToday);
+
+  // гирлянда: провод волнами и фонарик в каждой волне
+  const g = document.getElementById("garland");
+  const N = 12, colors = ["#ff4d4d", "#ffd23f", "#4dd26b", "#4da3ff", "#ff7de9"];
+  let wire = "M0 4";
+  for (let k = 0; k < N; k++) wire += " Q" + (k * 20 + 10) + " 26 " + (k + 1) * 20 + " 4";
+  g.innerHTML = '<svg viewBox="0 0 ' + N * 20 + ' 30" preserveAspectRatio="none"><path d="' + wire + '"/></svg>';
+  for (let k = 0; k < N; k++) {
+    const bulb = document.createElement("i");
+    bulb.style.left = ((k + 0.5) / N) * 100 + "%";
+    bulb.style.setProperty("--c", colors[k % colors.length]);
+    bulb.style.animationDuration = 3 + Math.random() * 5 + "s";
+    bulb.style.animationDelay = -Math.random() * 8 + "s";
+    g.appendChild(bulb);
+  }
+
+  initMusic();
+
+  document.getElementById("legend").innerHTML =
+    '<div><i style="background:var(--weekday);border:2px solid var(--weekday-edge)"></i>садик</div>' +
+    '<div><i style="background:var(--weekend);border:2px solid var(--weekend-edge)"></i>выходной</div>' +
+    Object.values(ACTIVITIES).map(a => "<div><b>" + a.emoji + "</b>" + a.label + "</div>").join("") +
+    "<div><b>⭐</b>была в садике</div><div><b>✅</b>была на занятии</div>";
+
+  document.getElementById("name").textContent = CHILD;
+  const now = new Date();
+  view = new Date(now.getFullYear(), now.getMonth(), 1);
+  render();
+
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+}
+</script>
+</body>
+</html>
