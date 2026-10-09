@@ -1600,6 +1600,13 @@ if (typeof document !== "undefined" && document.getElementById("grid")) {
 
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
+    // скачалась новая версия — один раз перезагрузить, чтобы правки появились сразу
+    if (navigator.serviceWorker.controller) {
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!reloaded) { reloaded = true; location.reload(); }
+      });
+    }
   }
 }
 </script>

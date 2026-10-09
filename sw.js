@@ -1,6 +1,6 @@
 // Работа без интернета: приложение, картинки и озвучка сохраняются в телефоне.
 // Открывается сохранённая версия, а в фоне подтягивается свежая — правки приходят сами.
-const CACHE = "katya-tracker-v3";   // после переозвучки или новых картинок — увеличить номер
+const CACHE = "katya-tracker-v4";   // после переозвучки или новых картинок — увеличить номер
 const FILES = [
   "./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png",
   "./img/girl-autumn.png", "./img/girl-winter.png", "./img/girl-spring.png", "./img/girl-summer.png",
@@ -10,14 +10,21 @@ const FILES = [
 async function precache() {
   const cache = await caches.open(CACHE);
   // по одному: если какой-то картинки ещё нет, остальное всё равно сохранится
-  await Promise.all(FILES.map(f => cache.add(f).catch(() => {})));
+  // cache: "reload" — брать с сайта, а не из временной памяти браузера (иначе могут сохраниться старые картинки)
+  await Promise.all(FILES.map(f => cache.add(new Request(f, { cache: "reload" })).catch(() => {})));
   try {
     const res = await fetch("./audio/index.json", { cache: "no-cache" });
     if (res.ok) {
       await cache.put("./audio/index.json", res.clone());
       const ids = await res.json();
       for (let i = 0; i < ids.length; i += 20) {
-        await Promise.all(ids.slice(i, i + 20).map(id => cache.add("./audio/" + id + ".mp3").catch(() => {})));
+        await Promise.all(ids.slice(i, i + 20).map(async id => {
+          const url = "./audio/" + id + ".mp3";
+          // озвучка не меняется: если файл уже есть в прошлой версии — берём его, а не качаем заново
+          const old = await caches.match(url).catch(() => null);
+          if (old) return cache.put(url, old).catch(() => {});
+          return cache.add(url).catch(() => {});
+        }));
       }
     }
   } catch (e) {}
